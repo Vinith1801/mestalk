@@ -1,48 +1,31 @@
-require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
+const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 
-// Route imports
-const authRoutes = require("./routes/authRoutes");
-const messageRoutes = require("./routes/messageRoutes");
-
-// Initialize app and connect DB
-const app = express();
+dotenv.config();
 connectDB();
 
-// Middlewares
-app.use(cors());
-app.use(express.json());
-
-// REST API routes
-app.use("/api/auth", authRoutes);
-app.use("/api/messages", messageRoutes);
-
-// Base route
-app.get("/", (req, res) => {
-  res.send("API is running...");
-});
-
-// --- Create HTTP server BEFORE socket.io setup
+const app = express();
 const server = http.createServer(app);
-
-// --- Initialize Socket.IO AFTER server is created
 const { Server } = require("socket.io");
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "*", // Update to frontend URL
     methods: ["GET", "POST"],
   },
 });
 
-// --- Now it's safe to use socketSetup(io)
-const socketSetup = require("./socket");
-socketSetup(io);
+const setupSocket = require("./socket");
+setupSocket(io);
 
-// Start server
+app.use(cors());
+app.use(express.json());
+
+app.use("/api/auth", require("./routes/authRoutes"));
+
+app.get("/", (req, res) => res.send("ChatWave Backend Running"));
+
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
