@@ -3,6 +3,7 @@ const http = require("http");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
+const setupSocket = require("./socket");
 
 dotenv.config();
 connectDB();
@@ -12,12 +13,11 @@ const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, {
   cors: {
-    origin: "*", // Update to frontend URL
+    origin: "http://localhost:5173",
     methods: ["GET", "POST"],
   },
 });
 
-const setupSocket = require("./socket");
 setupSocket(io);
 
 app.use(cors());
@@ -25,6 +25,7 @@ app.use(express.json());
 
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/friends", require("./routes/friendRoutes"));
+app.use("/api/messages", require("./routes/messageRoutes"));
 
 app.get("/", (req, res) => res.send("ChatWave Backend Running"));
 
