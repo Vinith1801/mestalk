@@ -10,7 +10,8 @@ const socketSetup = (io) => {
     // Store user's socket.id
     socket.on("register-user", (userId) => {
       onlineUsers.set(userId, socket.id);
-      console.log(`🟢 User ${userId} registered with socket ${socket.id}`);
+      console.log(`🟢 Registered user ${userId} with socket ${socket.id}`);
+      console.log("Online Users Map:", Array.from(onlineUsers.entries()));
     });
 
     // Handle sending messages
@@ -30,6 +31,8 @@ const socketSetup = (io) => {
           content,
           createdAt: newMsg.createdAt,
         });
+        console.log(`💬 Message from ${senderId} to ${receiverId}: ${content}`);
+        console.log("Receiver Socket:", onlineUsers.get(receiverId));
       }
     });
 
