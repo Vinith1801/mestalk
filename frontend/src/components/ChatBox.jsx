@@ -4,32 +4,40 @@ import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import MessageBubble from './MessageBubble';
 
-const ChatBox = () => {
+const ChatBox = ({ receiver }) => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const socket = useSocket();
   const { user } = useAuth();
-  const receiverId = '685e97ee8814cb811d3a8283'; // test with another user ID
 
   useEffect(() => {
     if (!socket) return;
-    socket.on('receive-message', (msg) => {
-      setMessages((prev) => [...prev, msg]);
-    });
-    return () => socket.off('receive-message');
-  }, [socket]);
 
-  const sendMessage = () => {
-    if (text.trim()) {
-      const msg = { senderId: user.id, receiverId, content: text };
-      socket.emit('send-message', msg);
-      setMessages((prev) => [...prev, { ...msg, createdAt: new Date().toISOString() }]);
-      setText('');
-    }
-  };
+    const handleReceiveMessage = (msg) => {
+      console.log('📥 Received:', msg);
+      console.log('👤 Current receiver:', receiver._id);
+      if (msg.sender === receiver._id || msg.receiver === receiver._id) {
+        setMessages((prev) => [...prev, msg]);
+      }
+    };
+
+    socket.on('receive-message', handleReceiveMessage);
+    return () => socket.off('receive-message', handleReceiveMessage);
+  }, [socket, receiver]);
+
+const sendMessage = () => {
+  if (text.trim() && receiver?._id) {
+    const msg = { senderId: user.id, receiverId: receiver._id, content: text };
+    socket.emit('send-message', msg);
+    setMessages((prev) => [...prev, { ...msg, createdAt: new Date().toISOString() }]);
+    setText('');
+  }
+};
+
 
   return (
     <div className="border p-4 w-full max-w-xl">
+      <h2 className="text-lg font-semibold mb-2">Chatting with {receiver?.username}</h2>
       <div className="h-64 overflow-y-auto border mb-2 p-2">
         {messages.map((msg, i) => (
           <MessageBubble key={i} msg={msg} own={msg.senderId === user.id} />

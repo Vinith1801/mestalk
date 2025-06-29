@@ -12,7 +12,13 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       const s = io('http://localhost:5000');
-      s.emit('register-user', user.id);
+
+      // Wait until connected before registering the user
+      s.on('connect', () => {
+        console.log('✅ Socket connected:', s.id);
+        s.emit('register-user', user.id); // <== KEY FIX
+      });
+
       setSocket(s);
       return () => s.disconnect();
     }
