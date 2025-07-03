@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import ChatBox from '../components/ChatBox';
 import { useAuth } from '../context/AuthContext';
+import FriendsList from '../components/FriendsList';
 
 const Home = () => {
   const { user } = useAuth();
@@ -25,17 +26,12 @@ const Home = () => {
     <div className="p-4">
       <h1 className="text-xl mb-4">Welcome, {user?.username}</h1>
       <div className="flex gap-4">
-        <div className="w-1/3 border p-2">
-          <h2 className="font-bold mb-2">Friends</h2>
-          {friends.map((friend) => (
-            <div
-              key={friend._id}
-              className={`cursor-pointer p-2 hover:bg-gray-100 ${selectedFriend?._id === friend._id ? 'bg-blue-100' : ''}`}
-              onClick={() => setSelectedFriend(friend)}
-            >
-              {friend.username}
-            </div>
-          ))}
+        <div className="w-1/3">
+          <FriendsList
+            friends={friends}
+            selectedFriend={selectedFriend}
+            onSelect={setSelectedFriend}
+          />
         </div>
         <div className="flex-1">
           {selectedFriend ? (

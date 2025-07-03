@@ -7,43 +7,78 @@ const socketSetup = (io) => {
   io.on("connection", (socket) => {
     console.log("📡 Connected:", socket.id);
 
-    // Store user's socket.id
-    socket.on("register-user", (userId) => {
-      onlineUsers.set(userId, socket.id);
-      console.log(`🟢 Registered user ${userId} with socket ${socket.id}`);
-      console.log("Online Users Map:", Array.from(onlineUsers.entries()));
+    // Register user
+    socket.on("register-user", async (userId) => {
+      if (!onlineUsers.has(userId)) {
+        onlineUsers.set(userId, new Set());
+        await User.findByIdAndUpdate(userId, { status: "online" });
+        io.emit("user-online", userId);
+        console.log(`🟢 ${userId} is now online`);
+      }
+
+      onlineUsers.get(userId).add(socket.id);
+      console.log(`🔗 ${userId} associated with socket ${socket.id}`);
+      io.emit("online-users", Array.from(onlineUsers.keys()));
     });
 
-    // Handle sending messages
+    // Send message
     socket.on("send-message", async ({ senderId, receiverId, content }) => {
       if (!senderId || !receiverId || !content) return;
 
-      // Save to DB
-      const newMsg = await Message.create({ sender: senderId, receiver: receiverId, content });
+      const newMsg = await Message.create({
+        sender: senderId,
+        receiver: receiverId,
+        content,
+      });
 
-      // Emit to receiver if online
-      const receiverSocketId = onlineUsers.get(receiverId);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("receive-message", {
-          _id: newMsg._id,
-          sender: senderId,
-          receiver: receiverId,
-          content,
-          createdAt: newMsg.createdAt,
-        });
-        console.log(`💬 Message from ${senderId} to ${receiverId}: ${content}`);
-        console.log("Receiver Socket:", onlineUsers.get(receiverId));
+      const messagePayload = {
+        _id: newMsg._id,
+        sender: senderId,
+        receiver: receiverId,
+        content,
+        createdAt: newMsg.createdAt,
+      };
+
+      // Send to receiver (to all their sockets)
+      const receiverSockets = onlineUsers.get(receiverId);
+      if (receiverSockets) {
+        for (const sockId of receiverSockets) {
+          io.to(sockId).emit("receive-message", messagePayload);
+        }
+      }
+
+      // Echo back to sender too
+      const senderSockets = onlineUsers.get(senderId);
+      if (senderSockets) {
+        for (const sockId of senderSockets) {
+          io.to(sockId).emit("receive-message", messagePayload);
+        }
       }
     });
 
-    // Disconnect logic
-    socket.on("disconnect", () => {
-      for (let [userId, sockId] of onlineUsers.entries()) {
-        if (sockId === socket.id) {
-          onlineUsers.delete(userId);
-          console.log(`🔴 User ${userId} disconnected`);
+    // Handle disconnect
+    socket.on("disconnect", async () => {
+      for (const [userId, socketSet] of onlineUsers.entries()) {
+        if (socketSet.has(socket.id)) {
+          socketSet.delete(socket.id);
+          console.log(`❌ Socket ${socket.id} removed for ${userId}`);
+
+          if (socketSet.size === 0) {
+            onlineUsers.delete(userId);
+            const lastSeen = new Date();
+            await User.findByIdAndUpdate(userId, {
+              status: "offline",
+              lastSeen,
+            });
+            io.emit("user-offline", { userId, lastSeen });
+            console.log(`⚪ ${userId} marked offline at ${lastSeen.toLocaleTimeString()}`);
+          }
+          break;
         }
       }
+
+      // Update global list
+      io.emit("online-users", Array.from(onlineUsers.keys()));
     });
   });
 };

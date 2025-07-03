@@ -8,7 +8,7 @@ import axios from 'axios';
 const ChatBox = ({ receiver }) => {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
-  const socket = useSocket();
+  const { socket } = useSocket();
   const { user, token } = useAuth(); // Ensure `token` is available in AuthContext
 
   // ✅ Load message history when receiver changes
@@ -36,7 +36,6 @@ const ChatBox = ({ receiver }) => {
     if (!socket) return;
 
     const handleReceiveMessage = (msg) => {
-      console.log('📥 Received:', msg);
       if (msg.sender === receiver._id || msg.receiver === receiver._id) {
         setMessages((prev) => [...prev, msg]);
       }
@@ -51,7 +50,7 @@ const ChatBox = ({ receiver }) => {
     if (text.trim() && receiver?._id) {
       const msg = { senderId: user.id, receiverId: receiver._id, content: text };
       socket.emit('send-message', msg);
-      setMessages((prev) => [...prev, { ...msg, createdAt: new Date().toISOString() }]);
+      // setMessages((prev) => [...prev, { ...msg, createdAt: new Date().toISOString() }]);
       setText('');
     }
   };

@@ -48,7 +48,7 @@ exports.rejectRequest = async (req, res) => {
 
 // Get list of friends
 exports.getFriends = async (req, res) => {
-  const user = await User.findById(req.userId).populate("friends", "username email avatarUrl status");
+  const user = await User.findById(req.userId).populate("friends", "username email avatarUrl status lastSeen");
   res.json(user.friends);
 };
 
