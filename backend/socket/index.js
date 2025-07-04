@@ -56,6 +56,26 @@ const socketSetup = (io) => {
       }
     });
 
+    // Typing indicator
+socket.on("typing", ({ senderId, receiverId }) => {
+  const receiverSockets = onlineUsers.get(receiverId);
+  if (receiverSockets) {
+    for (const sockId of receiverSockets) {
+      io.to(sockId).emit("typing", { senderId });
+    }
+  }
+});
+
+socket.on("stop-typing", ({ senderId, receiverId }) => {
+  const receiverSockets = onlineUsers.get(receiverId);
+  if (receiverSockets) {
+    for (const sockId of receiverSockets) {
+      io.to(sockId).emit("stop-typing", { senderId });
+    }
+  }
+});
+
+
     // Handle disconnect
     socket.on("disconnect", async () => {
       for (const [userId, socketSet] of onlineUsers.entries()) {
