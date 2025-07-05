@@ -43,6 +43,22 @@ const ChatBox = ({ receiver }) => {
     fetchMessages();
   }, [receiver, token]);
 
+  useEffect(() => {
+  if (!socket) return;
+
+  const handleSeen = ({ messageId }) => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg._id === messageId ? { ...msg, seen: true } : msg
+      )
+    );
+  };
+
+  socket.on("message-seen", handleSeen);
+  return () => socket.off("message-seen", handleSeen);
+}, [socket]);
+
+
   // ✅ Real-time incoming messages
   useEffect(() => {
     if (!socket) return;
@@ -59,7 +75,18 @@ const ChatBox = ({ receiver }) => {
 
   // ✅ Typing indicator listener
   useEffect(() => {
-    if (!socket || !receiver?._id) return;
+    if (!socket || !receiver?._id || messages.length ===0 ) return;
+
+    const unseenMsgIds = messages
+    .filter((msg) => msg.receiver === user.id && !msg.seen)
+    .map((msg) => msg._id);
+
+     if (unseenMsgIds.length > 0) {
+      socket.emit("mark-as-seen", {
+        messageIds: unseenMsgIds,
+        userId: user.id,
+      });
+    }
 
     const handleTyping = ({ senderId }) => {
       if (senderId === receiver._id) setTypingUser(senderId);
@@ -76,7 +103,7 @@ const ChatBox = ({ receiver }) => {
       socket.off("typing", handleTyping);
       socket.off("stop-typing", handleStopTyping);
     };
-  }, [socket, receiver]);
+  }, [messages, socket, receiver]);
 
   // ✅ Send message
   const sendMessage = () => {

@@ -75,6 +75,33 @@ socket.on("stop-typing", ({ senderId, receiverId }) => {
   }
 });
 
+socket.on("mark-as-seen", async ({ messageIds, userId }) => {
+  try {
+    await Message.updateMany(
+      { _id: { $in: messageIds }, receiver: userId },
+      { seen: true }
+    );
+
+    // Optional: Notify sender(s) that their message was seen
+    const updatedMessages = await Message.find({ _id: { $in: messageIds } });
+
+    for (const msg of updatedMessages) {
+      const senderSockets = onlineUsers.get(msg.sender.toString());
+      if (senderSockets) {
+        for (const sockId of senderSockets) {
+          io.to(sockId).emit("message-seen", {
+            messageId: msg._id,
+            receiverId: userId,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("❌ Error marking messages as seen:", err);
+  }
+});
+
+
 
     // Handle disconnect
     socket.on("disconnect", async () => {
