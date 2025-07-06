@@ -2,6 +2,7 @@ const Message = require("../models/MessageModel");
 const User = require("../models/UserModel");
 
 const onlineUsers = new Map();
+module.exports.onlineUsers = onlineUsers;
 
 const socketSetup = (io) => {
   io.on("connection", (socket) => {
@@ -20,6 +21,39 @@ const socketSetup = (io) => {
       console.log(`🔗 ${userId} associated with socket ${socket.id}`);
       io.emit("online-users", Array.from(onlineUsers.keys()));
     });
+
+    // Emit when request is sent
+socket.on("friend-request-sent", ({ from, to }) => {
+  const receiverSockets = onlineUsers.get(to);
+  if (receiverSockets) {
+    for (const sockId of receiverSockets) {
+      io.to(sockId).emit("incoming-friend-request", { from });
+    }
+  }
+});
+
+// Emit on accept
+socket.on("friend-request-accepted", ({ from, to }) => {
+  [from, to].forEach((userId) => {
+    const sockets = onlineUsers.get(userId);
+    if (sockets) {
+      for (const sockId of sockets) {
+        io.to(sockId).emit("friend-list-updated", { userId });
+      }
+    }
+  });
+});
+
+// Emit on reject
+socket.on("friend-request-rejected", ({ from, to }) => {
+  const senderSockets = onlineUsers.get(from);
+  if (senderSockets) {
+    for (const sockId of senderSockets) {
+      io.to(sockId).emit("request-rejected", { to });
+    }
+  }
+});
+
 
     // Send message
     socket.on("send-message", async ({ senderId, receiverId, content }) => {

@@ -9,6 +9,7 @@ export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
+  const [socketReady, setSocketReady] = useState(false);
 
   // Handle individual online/offline status
   useEffect(() => {
@@ -31,6 +32,35 @@ export const SocketProvider = ({ children }) => {
     };
   }, [socket]);
 
+  // Handle online users list
+  useEffect(() => {
+  if (!socket) return;
+
+  const handleIncomingRequest = ({ from }) => {
+    console.log("📩 New friend request from", from);
+    // Optionally update request state/UI
+  };
+
+  const handleAccepted = ({ userId }) => {
+    console.log("✅ Friend request accepted, updated friend list");
+    // Could trigger a refresh of friends list here
+  };
+
+  const handleRejected = ({ to }) => {
+    console.log("❌ Friend request rejected by", to);
+  };
+
+  socket.on("incoming-friend-request", handleIncomingRequest);
+  socket.on("friend-list-updated", handleAccepted);
+  socket.on("request-rejected", handleRejected);
+
+  return () => {
+    socket.off("incoming-friend-request", handleIncomingRequest);
+    socket.off("friend-list-updated", handleAccepted);
+    socket.off("request-rejected", handleRejected);
+  };
+}, [socket]);
+
   // Connect socket after user login
   useEffect(() => {
     if (user) {
@@ -39,6 +69,7 @@ export const SocketProvider = ({ children }) => {
       s.on('connect', () => {
         console.log('🔌 Socket connected:', s.id);
         s.emit('register-user', user.id);
+        setSocketReady(true);
       });
 
       s.on('online-users', (userIds) => {
@@ -52,13 +83,14 @@ export const SocketProvider = ({ children }) => {
       setSocket(s);
       return () => {
         s.disconnect();
+        setSocketReady(false);
         console.log('🔌 Socket disconnected');
       };
     }
   }, [user]);
 
   return (
-    <SocketContext.Provider value={{ socket, onlineUsers }}>
+    <SocketContext.Provider value={{ socket, onlineUsers, socketReady }}>
       {children}
     </SocketContext.Provider>
   );
