@@ -1,26 +1,56 @@
 // === pages/Home.jsx ===
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import ChatBox from '../components/ChatBox';
 import { useAuth } from '../context/AuthContext';
 import FriendsList from '../components/FriendsList';
+import { useSocket } from '../context/SocketContext';
 
 const Home = () => {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const [friends, setFriends] = useState([]);
   const [selectedFriend, setSelectedFriend] = useState(null);
 
-  useEffect(() => {
-    const fetchFriends = async () => {
+  // 🔁 Encapsulate the fetch logic so we can reuse it
+  const fetchFriends = useCallback(async () => {
+    try {
       const res = await fetch('http://localhost:5000/api/friends/list', {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
       });
       const data = await res.json();
-      setFriends(data);
-    };
-    fetchFriends();
+      if (Array.isArray(data)) {
+        setFriends(data);
+      } else {
+        console.warn("⚠️ Unexpected friend list format", data);
+      }
+    } catch (err) {
+      console.error("❌ Failed to fetch friends:", err);
+    }
   }, []);
+
+  // 🔁 Initial load
+  useEffect(() => {
+    fetchFriends();
+  }, [fetchFriends]);
+
+  // ✅ Refresh list in real-time
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    const handleFriendListUpdate = ({ userId }) => {
+      if (userId === user.id) {
+        fetchFriends();
+      }
+    };
+
+    socket.on("friend-list-updated", handleFriendListUpdate);
+
+    return () => {
+      socket.off("friend-list-updated", handleFriendListUpdate);
+    };
+  }, [socket, user, fetchFriends]);
 
   return (
     <div className="p-4">
